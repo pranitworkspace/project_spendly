@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(venv/bin/python *)",
+      "Bash(venv/bin/pytest *)",
+      "Bash(python app.py)",
+      "Bash(pip install -r requirements.txt)",
+      "Bash(git status)",
+      "Bash(git status *)",
+      "Bash(git diff)",
+      "Bash(git diff *)",
+      "Bash(git log)",
+      "Bash(git log *)"
+    ]
+  }
+}
