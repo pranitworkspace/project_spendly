@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Privacy Policy — Spendly{% endblock %}
+
+{% block content %}
+
+<section class="legal-section">
+    <div class="legal-container">
+
+        <div class="legal-header">
+            <div class="hero-badge">Legal</div>
+            <h1 class="legal-title">Privacy <em>Policy</em></h1>
+            <p class="legal-updated">Last updated: 20 August 2026</p>
+        </div>
+
+        <div class="legal-card">
+
+            <p class="legal-intro">
+                Spendly keeps a record of your spending, so we take the handling
+                of that information seriously. This policy explains what we
+                collect, why we collect it, and what control you have over it.
+            </p>
+
+            <div class="legal-block">
+                <h2 class="legal-heading"><span class="legal-num">1.</span>Data We Collect</h2>
+                <p>
+                    We collect only what is needed to run your account and show
+                    you your spending. That amounts to:
+                </p>
+                <ul>
+                    <li><strong>Account details</strong> — the name and email address you register with, and a securely hashed version of your password.</li>
+                    <li><strong>Expense records</strong> — the amounts, categories, dates, and descriptions you enter yourself.</li>
+                    <li><strong>Basic usage information</strong> — such as the date your account was created and when you last signed in.</li>
+                </ul>
+                <p>
+                    We do not ask for, and you should never enter, bank account
+                    numbers, card numbers, or other payment credentials. Spendly
+                    does not connect to your bank.
+                </p>
+            </div>
+
+            <div class="legal-block">
+                <h2 class="legal-heading"><span class="legal-num">2.</span>How We Use Your Data</h2>
+                <p>Your information is used to:</p>
+                <ul>
+                    <li>Display your expenses, category breakdowns, and monthly summaries.</li>
+                    <li>Authenticate you and keep your account secure.</li>
+                    <li>Filter and sort your records by the date ranges you choose.</li>
+                    <li>Diagnose faults and keep the service running correctly.</li>
+                </ul>
+                <p>
+                    We do not sell your data, rent it, or share it with
+                    advertisers. We do not use your expense records to build a
+                    marketing profile of you, and we will not send you marketing
+                    email you did not ask for.
+                </p>
+            </div>
+
+            <div class="legal-block">
+                <h2 class="legal-heading"><span class="legal-num">3.</span>Data Storage</h2>
+                <p>
+                    Your records are stored in the application's database and
+                    are tied to your account, so that only a session signed in
+                    as you can read them. Passwords are stored as one-way
+                    hashes and are never held in plain text.
+                </p>
+                <p>
+                    We retain your data for as long as your account is active.
+                    If you ask us to close your account, the associated expense
+                    records are removed along with it.
+                </p>
+                <p>
+                    No system can promise perfect security. While we take
+                    reasonable technical and organisational measures to protect
+                    your information, you should keep your own copies of records
+                    that matter to you.
+                </p>
+            </div>
+
+            <div class="legal-block">
+                <h2 class="legal-heading"><span class="legal-num">4.</span>Third Party Services</h2>
+                <p>
+                    Spendly is deliberately light on external dependencies. The
+                    third parties involved in running it may include a hosting
+                    provider that operates the servers your data sits on, and a
+                    web font provider used to load the typefaces on these pages.
+                </p>
+                <p>
+                    These providers process data only to the extent needed to
+                    deliver their part of the service, and they are not
+                    permitted to use it for their own purposes. We do not run
+                    advertising networks, third-party analytics, or social media
+                    tracking pixels on this site.
+                </p>
+                <p>
+                    We use cookies only for the essential purpose of keeping you
+                    signed in during a session. We do not use tracking cookies.
+                </p>
+            </div>
+
+            <div class="legal-block">
+                <h2 class="legal-heading"><span class="legal-num">5.</span>Contact Us</h2>
+                <p>
+                    You may ask us at any time to show you the data held about
+                    you, correct something that is wrong, or delete your account
+                    and its records.
+                </p>
+                <p>
+                    For any question about this policy or about your data, write
+                    to us at <strong>privacy@spendly.example</strong> and we will
+                    respond as soon as we reasonably can.
+                </p>
+                <p>
+                    If we change this policy, we will revise the "Last updated"
+                    date at the top of this page.
+                </p>
+            </div>
+
+        </div>
+
+        <p class="legal-note">
+            This page is a general template provided for a personal expense
+            tracking project and is not legal advice. Consult a qualified
+            professional before relying on it for a live service.
+        </p>
+
+    </div>
+</section>
+
+{% endblock %}
