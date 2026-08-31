@@ -1,6 +1,7 @@
 """HTTP-level tests for sign-in and sign-out."""
 
 from pathlib import Path
+from unittest.mock import patch
 
 DEMO_EMAIL = "demo@spendly.com"
 DEMO_PASSWORD = "demo123"
@@ -94,6 +95,22 @@ def test_unknown_email_gives_the_identical_error(client):
     assert b"Incorrect email or password." in wrong_password.data
 
 
+def test_unknown_email_still_calls_check_password_hash(client):
+    with patch("app.check_password_hash", wraps=__import__("app").check_password_hash) as spy:
+        client.post(
+            "/login", data={"email": "nobody@spendly.com", "password": DEMO_PASSWORD}
+        )
+        assert spy.call_count == 1
+
+
+def test_wrong_password_calls_check_password_hash_exactly_once(client):
+    with patch("app.check_password_hash", wraps=__import__("app").check_password_hash) as spy:
+        client.post(
+            "/login", data={"email": DEMO_EMAIL, "password": "wrong-password"}
+        )
+        assert spy.call_count == 1
+
+
 def test_empty_submission_is_rejected_without_a_400(client):
     response = client.post("/login", data={"email": "", "password": ""})
 
@@ -131,7 +148,8 @@ def test_a_password_registered_with_padding_can_sign_in(client):
 
 
 def test_login_form_action_uses_url_for():
-    source = Path("templates/login.html").read_text()
+    login_html = Path(__file__).resolve().parent.parent / "templates" / "login.html"
+    source = login_html.read_text()
 
     assert 'action="{{ url_for(\'login\') }}"' in source
     assert 'action="/login"' not in source
@@ -145,10 +163,20 @@ def test_failed_login_keeps_the_typed_email(client):
     assert b'value="demo@spendly.com"' in response.data
 
 
+def test_failed_login_does_not_echo_the_password(client):
+    response = client.post(
+        "/login", data={"email": DEMO_EMAIL, "password": "wrong-password"}
+    )
+
+    assert response.status_code == 200
+    assert b"wrong-password" not in response.data
+
+
 def test_login_page_renders_an_empty_email_field(client):
     response = client.get("/login")
 
     assert response.status_code == 200
+    assert b'name="email"' in response.data
     assert b'value=""' in response.data
 
 

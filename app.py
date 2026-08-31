@@ -1,7 +1,7 @@
 import os
 
 from flask import Flask, flash, redirect, render_template, request, session, url_for
-from werkzeug.security import check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from database.db import create_user, get_user_by_email, init_db, seed_db
 
@@ -11,6 +11,13 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get(
     "SPENDLY_SECRET_KEY", "dev-only-secret-change-in-production"
 )
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+
+# A precomputed hash with no matching account, spent on every login attempt
+# for an unknown email so that path costs the same as a wrong-password check
+# against a real user — otherwise the missing check_password_hash() call is a
+# timing oracle that lets an attacker enumerate registered emails.
+_DUMMY_HASH = generate_password_hash("dummy-password-for-constant-time-login")
 
 
 # ------------------------------------------------------------------ #
@@ -81,12 +88,17 @@ def login():
         user = get_user_by_email(email)
 
         # One message for both failures. A distinct "no such account" would
-        # tell an attacker which emails are registered.
-        if user is None or not check_password_hash(user["password_hash"], password):
+        # tell an attacker which emails are registered. check_password_hash
+        # is evaluated first (left operand of `or`) so an unknown email
+        # always pays the same hashing cost as a wrong password — otherwise
+        # the short-circuit on `user is None` is a timing oracle.
+        pwhash = user["password_hash"] if user is not None else _DUMMY_HASH
+        if not check_password_hash(pwhash, password) or user is None:
             return render_template(
                 "login.html", error="Incorrect email or password.", email=email
             )
 
+        session.clear()
         session["user_id"] = user["id"]
         session["user_name"] = user["name"]
         return redirect(url_for("landing"))
