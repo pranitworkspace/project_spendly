@@ -92,7 +92,7 @@ No new dependencies. `session` and `flash` are Flask core, `check_password_hash`
 
 Verified by running `venv/bin/python app.py` and using the app at `http://127.0.0.1:5001`:
 
-- [ ] `venv/bin/pytest` passes — all 18 existing `tests/test_db.py` tests still green.
+- [ ] `venv/bin/pytest` passes — all 17 existing `tests/test_db.py` tests still green.
 - [ ] `POST /login` no longer returns 405; the sign-in form submits.
 - [ ] Signing in as `demo@spendly.com` / `demo123` redirects to the landing page and the navbar shows the user's name and a "Sign out" link instead of "Sign in / Get started".
 - [ ] `DEMO@Spendly.com` (mixed case) with the correct password signs in successfully — email normalisation works.
