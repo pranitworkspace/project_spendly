@@ -1,6 +1,7 @@
 import os
 
-from flask import Flask, redirect, render_template, request, url_for
+from flask import Flask, redirect, render_template, request, session, url_for
+from werkzeug.security import check_password_hash
 
 from database.db import create_user, get_user_by_email, init_db, seed_db
 
@@ -64,8 +65,28 @@ def register():
     return render_template("register.html")
 
 
-@app.route("/login")
+@app.route("/login", methods=["GET", "POST"])
 def login():
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        # Verified exactly as typed — stripping here would lock out any
+        # account whose password was registered with padding.
+        password = request.form.get("password", "")
+
+        if not email or not password.strip():
+            return render_template("login.html", error="All fields are required.")
+
+        user = get_user_by_email(email)
+
+        # One message for both failures. A distinct "no such account" would
+        # tell an attacker which emails are registered.
+        if user is None or not check_password_hash(user["password_hash"], password):
+            return render_template("login.html", error="Incorrect email or password.")
+
+        session["user_id"] = user["id"]
+        session["user_name"] = user["name"]
+        return redirect(url_for("landing"))
+
     return render_template("login.html")
 
 
