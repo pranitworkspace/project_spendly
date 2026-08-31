@@ -150,3 +150,46 @@ def test_login_page_renders_an_empty_email_field(client):
 
     assert response.status_code == 200
     assert b'value=""' in response.data
+
+
+def test_logout_redirects_to_landing(client):
+    client.post("/login", data={"email": DEMO_EMAIL, "password": DEMO_PASSWORD})
+
+    response = client.get("/logout")
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/"
+
+
+def test_logout_clears_the_whole_session(client):
+    client.post("/login", data={"email": DEMO_EMAIL, "password": DEMO_PASSWORD})
+
+    client.get("/logout")
+
+    with client.session_transaction() as session:
+        assert "user_id" not in session
+        assert "user_name" not in session
+
+
+def test_logout_while_signed_out_is_harmless(client):
+    response = client.get("/logout")
+
+    assert response.status_code == 302
+
+
+def test_logout_returns_no_placeholder_string(client):
+    client.post("/login", data={"email": DEMO_EMAIL, "password": DEMO_PASSWORD})
+
+    response = client.get("/logout")
+
+    assert b"coming in Step 3" not in response.data
+
+
+def test_other_stub_routes_are_untouched(client):
+    assert b"Profile page \xe2\x80\x94 coming in Step 4" in client.get("/profile").data
+    assert b"Add expense \xe2\x80\x94 coming in Step 7" in client.get("/expenses/add").data
+    assert b"Edit expense \xe2\x80\x94 coming in Step 8" in client.get("/expenses/1/edit").data
+    assert (
+        b"Delete expense \xe2\x80\x94 coming in Step 9"
+        in client.get("/expenses/1/delete").data
+    )
