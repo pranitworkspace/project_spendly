@@ -1,8 +1,15 @@
+import os
+
 from flask import Flask, redirect, render_template, request, url_for
 
 from database.db import create_user, get_user_by_email, init_db, seed_db
 
 app = Flask(__name__)
+# Signs the session cookie. Real deployments set SPENDLY_SECRET_KEY; the
+# fallback exists so the teaching scaffold runs with no configuration.
+app.config["SECRET_KEY"] = os.environ.get(
+    "SPENDLY_SECRET_KEY", "dev-only-secret-change-in-production"
+)
 
 
 # ------------------------------------------------------------------ #
