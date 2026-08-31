@@ -193,3 +193,55 @@ def test_other_stub_routes_are_untouched(client):
         b"Delete expense \xe2\x80\x94 coming in Step 9"
         in client.get("/expenses/1/delete").data
     )
+
+
+# The landing page has its own "Sign in" ghost button (landing.html:98), so a
+# bare b">Sign in<" check would match markup outside the navbar. Every nav
+# assertion below is anchored to a nav-only class.
+NAV_SIGNED_OUT = b'class="nav-cta">Get started<'
+NAV_SIGNED_IN = b'class="nav-user">Demo User<'
+
+
+def test_signed_out_nav_shows_sign_in_and_get_started(client):
+    response = client.get("/")
+
+    assert NAV_SIGNED_OUT in response.data
+    assert b">Sign out<" not in response.data
+
+
+def test_signed_in_nav_shows_the_name_and_sign_out(client):
+    client.post("/login", data={"email": DEMO_EMAIL, "password": DEMO_PASSWORD})
+
+    response = client.get("/")
+
+    assert NAV_SIGNED_IN in response.data
+    assert b">Sign out<" in response.data
+    assert NAV_SIGNED_OUT not in response.data
+
+
+def test_nav_returns_to_signed_out_after_logout(client):
+    client.post("/login", data={"email": DEMO_EMAIL, "password": DEMO_PASSWORD})
+    client.get("/logout")
+
+    response = client.get("/")
+
+    assert NAV_SIGNED_OUT in response.data
+    assert NAV_SIGNED_IN not in response.data
+
+
+def test_logout_flash_is_rendered(client):
+    client.post("/login", data={"email": DEMO_EMAIL, "password": DEMO_PASSWORD})
+
+    response = client.get("/logout", follow_redirects=True)
+
+    assert b"You have been signed out." in response.data
+    assert b"flash-success" in response.data
+
+
+def test_flash_is_consumed_after_one_render(client):
+    client.post("/login", data={"email": DEMO_EMAIL, "password": DEMO_PASSWORD})
+    client.get("/logout", follow_redirects=True)
+
+    response = client.get("/")
+
+    assert b"You have been signed out." not in response.data
