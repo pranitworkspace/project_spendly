@@ -18,7 +18,7 @@ Spendly is a lightweight personal expense tracker built with Flask and SQLite. T
 
 **Templates use Jinja2 inheritance** — every page extends `base.html`. Links and static assets are built with `url_for()` (e.g. `url_for('login')`, `url_for('static', filename='css/style.css')`) — never hardcoded paths.
 
-**The auth templates speak a contract the view must honour:** `register.html` and `login.html` submit `POST` to their own routes and render `{{ error }}` if the view passes one — a failed attempt is `render_template("login.html", error="...")`, never a redirect. Only success redirects. `/register` fulfils this as of Step 2; `POST /login` still 405s because that route accepts `GET` only.
+**The auth templates speak a contract the view must honour:** `register.html` and `login.html` submit `POST` to their own routes and render `{{ error }}` if the view passes one — a failed attempt is `render_template("login.html", error="...")`, never a redirect. Only success redirects. Both `/register` and `/login` fulfil this as of Steps 2 and 3.
 
 ---
 
@@ -71,14 +71,18 @@ No linter/formatter is configured in this repo.
 
 `app.py` marks its stub routes with a literal string naming the step that implements them (`"Add expense — coming in Step 7"`), so the current state is always readable from the file itself.
 
-Step 1 (`database/db.py`) and Step 2 (registration) are done. The remaining order is: login → session/logout, then expense CRUD. There is no expense-listing route yet at all.
+Step 1 (`database/db.py`), Step 2 (registration), and Step 3 (login, session, logout) are done. The remaining order is: profile, then expense CRUD. There is no expense-listing route yet at all, which is why a successful login currently redirects to the landing page.
 
-**Conventions Step 2 established, which login and everything after must match:**
+**Conventions Steps 2-3 established, which everything after must match:**
 - Emails are stored and looked up **stripped and lowercased**. SQLite compares TEXT case-sensitively, so normalising in the view is the only thing keeping `A@b.com` and `a@b.com` one account. `get_user_by_email()` expects an already-normalised value.
 - Passwords are hashed **exactly as typed**, but validated on the stripped value — so login must not strip before calling `check_password_hash`, or padded passwords will never match.
 - `create_user()` returns `None` for a taken email rather than raising, so the view never has to import `sqlite3`. It re-raises any other `IntegrityError`.
 - Form fields are read with `request.form.get(key, "")` — the subscript form raises a 400 page instead of re-rendering with an error.
-- There is still **no `SECRET_KEY`**, so `session[...]` and `flash()` both raise at request time. Step 3 adds one.
+- `SECRET_KEY` is read from `SPENDLY_SECRET_KEY` with a dev fallback, set in `app.py` right after `app = Flask(__name__)`. `session[...]` and `flash()` work.
+- The session holds exactly `user_id` (int) and `user_name` (str) — never the email, never the hash. `base.html` branches on `session.user_id`; expense routes will scope on `session["user_id"]`.
+- Logout uses `session.clear()`, never a partial `pop()`.
+- Auth failures use one generic message, `"Incorrect email or password."`, for both an unknown email and a wrong password — do not add a message that reveals whether an account exists.
+- `flash(message, "success"|"error")` renders through the `.flash-stack` block in `base.html`; the CSS classes are `.flash-success` and `.flash-error`.
 
 **Do not implement a stub route unless the active task explicitly targets that step.**
 
