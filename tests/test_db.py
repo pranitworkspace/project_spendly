@@ -1,4 +1,4 @@
-"""Tests for the Step 1 data layer (database/db.py)."""
+"""Tests for the data layer (database/db.py)."""
 
 import sqlite3
 from datetime import date
@@ -6,7 +6,14 @@ from datetime import date
 import pytest
 from werkzeug.security import check_password_hash
 
-from database.db import CATEGORIES, get_db, init_db, seed_db
+from database.db import (
+    CATEGORIES,
+    create_user,
+    get_db,
+    get_user_by_email,
+    init_db,
+    seed_db,
+)
 
 
 def table_names(conn):
@@ -151,3 +158,81 @@ def test_expense_with_invalid_user_id_raises_integrity_error():
             )
     finally:
         conn.close()
+
+
+def test_create_user_returns_new_id_and_persists_row():
+    init_db()
+    user_id = create_user("Nitish Kumar", "nitish@example.com", "supersecret")
+    assert isinstance(user_id, int)
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+        assert row["name"] == "Nitish Kumar"
+        assert row["email"] == "nitish@example.com"
+        assert row["created_at"]
+    finally:
+        conn.close()
+
+
+def test_create_user_hashes_the_password():
+    init_db()
+    user_id = create_user("Nitish Kumar", "nitish@example.com", "supersecret")
+    conn = get_db()
+    try:
+        stored = conn.execute(
+            "SELECT password_hash FROM users WHERE id = ?", (user_id,)
+        ).fetchone()["password_hash"]
+        assert stored != "supersecret"
+        assert stored.startswith("scrypt:")
+        assert check_password_hash(stored, "supersecret")
+    finally:
+        conn.close()
+
+
+def test_create_user_returns_none_for_duplicate_email():
+    init_db()
+    assert create_user("First", "taken@example.com", "supersecret") is not None
+    assert create_user("Second", "taken@example.com", "supersecret") is None
+    conn = get_db()
+    try:
+        assert conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 1
+    finally:
+        conn.close()
+
+
+def test_create_user_rejects_the_seeded_demo_email():
+    init_db()
+    seed_db()
+    assert create_user("Clone", "demo@spendly.com", "supersecret") is None
+    conn = get_db()
+    try:
+        assert conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 1
+    finally:
+        conn.close()
+
+
+def test_get_user_by_email_returns_row_for_existing_user():
+    init_db()
+    seed_db()
+    user = get_user_by_email("demo@spendly.com")
+    assert user["name"] == "Demo User"
+
+
+def test_get_user_by_email_returns_none_for_unknown_email():
+    init_db()
+    seed_db()
+    assert get_user_by_email("nobody@example.com") is None
+
+
+def test_get_user_by_email_does_not_match_other_casing():
+    """SQLite compares TEXT case-sensitively — the caller normalises first."""
+    init_db()
+    seed_db()
+    assert get_user_by_email("DEMO@spendly.com") is None
+
+
+def test_create_user_reraises_integrity_errors_that_are_not_duplicates():
+    """Only an email collision means "taken" — other constraints are bugs."""
+    init_db()
+    with pytest.raises(sqlite3.IntegrityError):
+        create_user(None, "nameless@example.com", "supersecret")

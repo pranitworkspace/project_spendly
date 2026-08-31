@@ -18,7 +18,7 @@ Spendly is a lightweight personal expense tracker built with Flask and SQLite. T
 
 **Templates use Jinja2 inheritance** — every page extends `base.html`. Links and static assets are built with `url_for()` (e.g. `url_for('login')`, `url_for('static', filename='css/style.css')`) — never hardcoded paths.
 
-**The templates already speak a contract the backend hasn't fulfilled:** `register.html` and `login.html` submit `POST` to their own routes and render `{{ error }}` if the view passes one (e.g. failing registration is expected to be `render_template("register.html", error="...")`, not a redirect). Posting to either currently 405s because those routes only accept `GET`.
+**The auth templates speak a contract the view must honour:** `register.html` and `login.html` submit `POST` to their own routes and render `{{ error }}` if the view passes one — a failed attempt is `render_template("login.html", error="...")`, never a redirect. Only success redirects. `/register` fulfils this as of Step 2; `POST /login` still 405s because that route accepts `GET` only.
 
 ---
 
@@ -71,7 +71,14 @@ No linter/formatter is configured in this repo.
 
 `app.py` marks its stub routes with a literal string naming the step that implements them (`"Add expense — coming in Step 7"`), so the current state is always readable from the file itself.
 
-Step 1 (`database/db.py`) is done. The remaining order is: register → login → session/logout, then expense CRUD. There is no expense-listing route yet at all.
+Step 1 (`database/db.py`) and Step 2 (registration) are done. The remaining order is: login → session/logout, then expense CRUD. There is no expense-listing route yet at all.
+
+**Conventions Step 2 established, which login and everything after must match:**
+- Emails are stored and looked up **stripped and lowercased**. SQLite compares TEXT case-sensitively, so normalising in the view is the only thing keeping `A@b.com` and `a@b.com` one account. `get_user_by_email()` expects an already-normalised value.
+- Passwords are hashed **exactly as typed**, but validated on the stripped value — so login must not strip before calling `check_password_hash`, or padded passwords will never match.
+- `create_user()` returns `None` for a taken email rather than raising, so the view never has to import `sqlite3`. It re-raises any other `IntegrityError`.
+- Form fields are read with `request.form.get(key, "")` — the subscript form raises a 400 page instead of re-rendering with an error.
+- There is still **no `SECRET_KEY`**, so `session[...]` and `flash()` both raise at request time. Step 3 adds one.
 
 **Do not implement a stub route unless the active task explicitly targets that step.**
 

@@ -120,3 +120,57 @@ def seed_db():
         conn.commit()
     finally:
         conn.close()
+
+
+# ------------------------------------------------------------------ #
+# Users — registration (Step 2) and, later, login                     #
+# ------------------------------------------------------------------ #
+
+
+def get_user_by_email(email):
+    """Return the user row for `email`, or None if no such account exists.
+
+    `email` must arrive already normalised — stripped and lowercased by the
+    caller. SQLite's default TEXT collation is case-sensitive, so "A@b.com"
+    and "a@b.com" are distinct keys to both this lookup and the UNIQUE index
+    on users.email; normalising in one place is what keeps them the same
+    account.
+
+    The returned row stays readable after the connection closes.
+    """
+    conn = get_db()
+    try:
+        return conn.execute(
+            "SELECT * FROM users WHERE email = ?", (email,)
+        ).fetchone()
+    finally:
+        conn.close()
+
+
+def create_user(name, email, password):
+    """Hash `password`, insert the user, and return the new row's id.
+
+    Returns None if the email is already registered. `created_at` is left to
+    the schema default.
+
+    The UNIQUE index on users.email is the real authority here: a caller's
+    duplicate check can go stale between its lookup and this insert, so the
+    IntegrityError is handled rather than allowed to escape as a 500. Only the
+    email collision is swallowed — a NOT NULL violation is a caller's bug and
+    is re-raised rather than reported as a taken email.
+    """
+    conn = get_db()
+    try:
+        cursor = conn.execute(
+            "INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)",
+            (name, email, generate_password_hash(password)),
+        )
+        conn.commit()
+        return cursor.lastrowid
+    except sqlite3.IntegrityError as exc:
+        if "users.email" not in str(exc):
+            raise
+        conn.rollback()
+        return None
+    finally:
+        conn.close()
