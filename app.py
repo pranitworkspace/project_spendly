@@ -74,14 +74,18 @@ def login():
         password = request.form.get("password", "")
 
         if not email or not password.strip():
-            return render_template("login.html", error="All fields are required.")
+            return render_template(
+                "login.html", error="All fields are required.", email=email
+            )
 
         user = get_user_by_email(email)
 
         # One message for both failures. A distinct "no such account" would
         # tell an attacker which emails are registered.
         if user is None or not check_password_hash(user["password_hash"], password):
-            return render_template("login.html", error="Incorrect email or password.")
+            return render_template(
+                "login.html", error="Incorrect email or password.", email=email
+            )
 
         session["user_id"] = user["id"]
         session["user_name"] = user["name"]

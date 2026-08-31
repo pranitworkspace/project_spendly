@@ -1,5 +1,7 @@
 """HTTP-level tests for sign-in and sign-out."""
 
+from pathlib import Path
+
 DEMO_EMAIL = "demo@spendly.com"
 DEMO_PASSWORD = "demo123"
 
@@ -126,3 +128,25 @@ def test_a_password_registered_with_padding_can_sign_in(client):
     )
 
     assert response.status_code == 302
+
+
+def test_login_form_action_uses_url_for():
+    source = Path("templates/login.html").read_text()
+
+    assert 'action="{{ url_for(\'login\') }}"' in source
+    assert 'action="/login"' not in source
+
+
+def test_failed_login_keeps_the_typed_email(client):
+    response = client.post(
+        "/login", data={"email": DEMO_EMAIL, "password": "wrong-password"}
+    )
+
+    assert b'value="demo@spendly.com"' in response.data
+
+
+def test_login_page_renders_an_empty_email_field(client):
+    response = client.get("/login")
+
+    assert response.status_code == 200
+    assert b'value=""' in response.data
