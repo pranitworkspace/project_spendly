@@ -40,6 +40,10 @@ def landing():
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
+    # A signed-in user has nothing to do on the registration form.
+    if session.get("user_id"):
+        return redirect(url_for("landing"))
+
     if request.method == "POST":
         name = request.form.get("name", "").strip()
         email = request.form.get("email", "").strip().lower()
@@ -74,6 +78,11 @@ def register():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    # Already signed in — /login has nothing to offer, so bounce them home
+    # rather than showing a sign-in form to someone already signed in.
+    if session.get("user_id"):
+        return redirect(url_for("landing"))
+
     if request.method == "POST":
         email = request.form.get("email", "").strip().lower()
         # Verified exactly as typed — stripping here would lock out any

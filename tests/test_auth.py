@@ -273,3 +273,35 @@ def test_flash_is_consumed_after_one_render(client):
     response = client.get("/")
 
     assert b"You have been signed out." not in response.data
+
+
+def test_signed_in_user_is_redirected_away_from_register(client):
+    client.post("/login", data={"email": DEMO_EMAIL, "password": DEMO_PASSWORD})
+
+    response = client.get("/register")
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/"
+
+
+def test_signed_in_user_is_redirected_away_from_login(client):
+    client.post("/login", data={"email": DEMO_EMAIL, "password": DEMO_PASSWORD})
+
+    response = client.get("/login")
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/"
+
+
+def test_signed_out_visitor_can_still_reach_register(client):
+    response = client.get("/register")
+
+    assert response.status_code == 200
+    assert b"Create an account" in response.data or b"name=\"name\"" in response.data
+
+
+def test_signed_out_visitor_can_still_reach_login(client):
+    response = client.get("/login")
+
+    assert response.status_code == 200
+    assert b"Welcome back" in response.data
