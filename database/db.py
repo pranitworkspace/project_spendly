@@ -174,3 +174,86 @@ def create_user(name, email, password):
         return None
     finally:
         conn.close()
+
+
+def get_user_by_id(user_id):
+    """Return the user row for `user_id`, or None if no such account exists.
+
+    The session carries `user_id` (Step 3); a page that needs the full record —
+    name, email, created_at — looks it up here rather than widening what the
+    session stores. This is the id-keyed companion to get_user_by_email(), which
+    Step 3 deliberately deferred until a step needed it.
+
+    The column list is explicit on purpose: `password_hash` must never travel
+    out of the data layer toward a template context, so it is not selected.
+    """
+    conn = get_db()
+    try:
+        return conn.execute(
+            "SELECT id, name, email, created_at FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+    finally:
+        conn.close()
+
+
+# ------------------------------------------------------------------ #
+# Expenses — profile reads (Step 5)                                   #
+# ------------------------------------------------------------------ #
+
+
+def get_recent_expenses(user_id, limit=10):
+    """Return `user_id`'s most recent expenses, newest first, capped at `limit`.
+
+    Ordered by `date` then `id` so that expenses sharing a date fall in
+    insertion order with the newest first. Powers the profile page's "Recent
+    transactions" table, which shows only a recent window rather than the whole
+    history.
+    """
+    conn = get_db()
+    try:
+        return conn.execute(
+            "SELECT id, amount, category, date, description "
+            "FROM expenses WHERE user_id = ? "
+            "ORDER BY date DESC, id DESC LIMIT ?",
+            (user_id, limit),
+        ).fetchall()
+    finally:
+        conn.close()
+
+
+def get_expense_summary(user_id):
+    """Return a single row of (`tx_count`, `total`) for `user_id`'s expenses.
+
+    COALESCE keeps `total` a float `0.0` rather than NULL when the user has no
+    expenses yet, so the caller never has to special-case the empty account.
+    """
+    conn = get_db()
+    try:
+        return conn.execute(
+            "SELECT COUNT(*) AS tx_count, COALESCE(SUM(amount), 0.0) AS total "
+            "FROM expenses WHERE user_id = ?",
+            (user_id,),
+        ).fetchone()
+    finally:
+        conn.close()
+
+
+def get_category_breakdown(user_id):
+    """Return `user_id`'s spend per category as rows of (`category`, `total`).
+
+    Largest total first; ties broken alphabetically for a stable order.
+    Categories the user has never spent in are absent from the result, so the
+    first row is both the top category and the denominator for the profile
+    page's breakdown bars.
+    """
+    conn = get_db()
+    try:
+        return conn.execute(
+            "SELECT category, SUM(amount) AS total "
+            "FROM expenses WHERE user_id = ? "
+            "GROUP BY category ORDER BY total DESC, category ASC",
+            (user_id,),
+        ).fetchall()
+    finally:
+        conn.close()

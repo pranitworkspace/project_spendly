@@ -1,9 +1,19 @@
 import os
+from datetime import date
 
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from database.db import create_user, get_user_by_email, init_db, seed_db
+from database.db import (
+    create_user,
+    get_category_breakdown,
+    get_expense_summary,
+    get_recent_expenses,
+    get_user_by_email,
+    get_user_by_id,
+    init_db,
+    seed_db,
+)
 
 app = Flask(__name__)
 # Signs the session cookie. Real deployments set SPENDLY_SECRET_KEY; the
@@ -140,53 +150,115 @@ def logout():
 # Profile                                                            #
 # ------------------------------------------------------------------ #
 
+# Profile view-model helpers. The template renders pre-formatted strings and
+# plain dicts (Jinja's `row.attr` does not work on a sqlite3.Row), so the view
+# shapes raw DB rows into exactly what profile.html expects. Presentation only —
+# no database access lives here.
+
+def _rupees(value):
+    """Format a number as Spendly currency: 6848.75 -> '₹6,848.75'."""
+    return "₹" + f"{value:,.2f}"
+
+
+def _initials(name):
+    """First letter of each of the first two name words, uppercased.
+
+    'Demo User' -> 'DU'. Falls back to '?' for an empty name so the avatar is
+    never blank.
+    """
+    letters = [word[0] for word in name.split()[:2]]
+    return "".join(letters).upper() or "?"
+
+
+def _month_year(created_at):
+    """A users.created_at ('2026-09-01 12:34:56') -> 'September 2026'.
+
+    Only the date half is needed; slicing keeps this independent of whether the
+    stored stamp carries a time component.
+    """
+    return date.fromisoformat(created_at[:10]).strftime("%B %Y")
+
+
+def _tx_date(iso_date):
+    """An expenses.date ('2026-09-02') -> '2 Sep 2026' — no leading-zero day."""
+    d = date.fromisoformat(iso_date)
+    return f"{d.day} {d:%b %Y}"
+
+
+def _user_card(user_row):
+    """Shape a users row into the template's `user` dict."""
+    return {
+        "name": user_row["name"],
+        "email": user_row["email"],
+        "initials": _initials(user_row["name"]),
+        "member_since": _month_year(user_row["created_at"]),
+    }
+
+
+def _build_transactions(expense_rows):  # SUBAGENT 1 — transaction history
+    """Shape recent-expenses rows into the template's `transactions` list."""
+    return [
+        {
+            "date": _tx_date(row["date"]),
+            "description": row["description"] or "",
+            "category": row["category"],
+            "amount": _rupees(row["amount"]),
+        }
+        for row in expense_rows
+    ]
+
+
+def _build_stats(summary, category_rows):  # SUBAGENT 2 — summary stats
+    """Shape the expense summary and category rows into the template's `stats` list."""
+    return [
+        {"label": "Total spent", "value": _rupees(summary["total"])},
+        {"label": "Transactions", "value": str(summary["tx_count"])},
+        {
+            "label": "Top category",
+            "value": category_rows[0]["category"] if category_rows else "—",
+        },
+    ]
+
+
+def _build_breakdown(category_rows):  # SUBAGENT 3 — category breakdown
+    """Shape category-total rows into the template's `breakdown` list, `pct` scaled to the top category."""
+    if not category_rows:
+        return []
+    max_total = category_rows[0]["total"]
+    return [
+        {
+            "category": row["category"],
+            "amount": _rupees(row["total"]),
+            "pct": round(row["total"] / max_total * 100),
+        }
+        for row in category_rows
+    ]
+
+
 @app.route("/profile")
 def profile():
     # Inline guard, matching the /register and /login style already in this
-    # file (not a decorator). Step 5 keeps this guard and swaps the hardcoded
-    # context below for real users/expenses queries via database/db.py.
+    # file (not a decorator).
     if not session.get("user_id"):
         return redirect(url_for("login"))
 
-    user = {
-        "name": "Demo User",
-        "email": "demo@spendly.com",
-        "initials": "DU",
-        "member_since": "January 2026",
-    }
-    stats = [
-        {"label": "Total spent", "value": "₹6,848.75"},
-        {"label": "Transactions", "value": "8"},
-        {"label": "Top category", "value": "Shopping"},
-    ]
-    transactions = [
-        {"date": "2 Sep 2026", "description": "Groceries", "category": "Food", "amount": "₹450.00"},
-        {"date": "4 Sep 2026", "description": "Metro card top-up", "category": "Transport", "amount": "₹120.50"},
-        {"date": "7 Sep 2026", "description": "Electricity bill", "category": "Bills", "amount": "₹1,899.00"},
-        {"date": "9 Sep 2026", "description": "Pharmacy", "category": "Health", "amount": "₹650.00"},
-        {"date": "12 Sep 2026", "description": "Movie tickets", "category": "Entertainment", "amount": "₹399.00"},
-        {"date": "15 Sep 2026", "description": "Running shoes", "category": "Shopping", "amount": "₹2,250.00"},
-        {"date": "18 Sep 2026", "description": "Dinner out", "category": "Food", "amount": "₹780.25"},
-        {"date": "21 Sep 2026", "description": "Gift", "category": "Other", "amount": "₹300.00"},
-    ]
-    # pct = this category's total as a share of the largest category's total, so
-    # the top row's bar renders full. Precomputed here; the template only renders.
-    breakdown = [
-        {"category": "Shopping", "amount": "₹2,250.00", "pct": 100},
-        {"category": "Bills", "amount": "₹1,899.00", "pct": 84},
-        {"category": "Food", "amount": "₹1,230.25", "pct": 55},
-        {"category": "Health", "amount": "₹650.00", "pct": 29},
-        {"category": "Entertainment", "amount": "₹399.00", "pct": 18},
-        {"category": "Other", "amount": "₹300.00", "pct": 13},
-        {"category": "Transport", "amount": "₹120.50", "pct": 5},
-    ]
+    user_row = get_user_by_id(session["user_id"])
+    if user_row is None:
+        # Session points at a deleted account — treat as signed out.
+        session.clear()
+        return redirect(url_for("login"))
+
+    uid = user_row["id"]
+    summary = get_expense_summary(uid)
+    category_rows = get_category_breakdown(uid)
+    expense_rows = get_recent_expenses(uid, limit=10)
 
     return render_template(
         "profile.html",
-        user=user,
-        stats=stats,
-        transactions=transactions,
-        breakdown=breakdown,
+        user=_user_card(user_row),
+        stats=_build_stats(summary, category_rows),
+        transactions=_build_transactions(expense_rows),
+        breakdown=_build_breakdown(category_rows),
     )
 
 

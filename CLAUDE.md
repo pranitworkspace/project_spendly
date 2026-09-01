@@ -71,7 +71,7 @@ No linter/formatter is configured in this repo.
 
 `app.py` marks its stub routes with a literal string naming the step that implements them (`"Add expense — coming in Step 7"`), so the current state is always readable from the file itself.
 
-Step 1 (`database/db.py`), Step 2 (registration), Step 3 (login, session, logout), and Step 4 (profile page) are done. `/profile` renders its four sections (user card, summary stats, transaction table, category breakdown) from **hardcoded dicts/lists in `app.py`** — Step 5 swaps that context for real `users`/`expenses` queries via `database/db.py` with no template change. The remaining order is: wire the profile DB (Step 5), then expense CRUD. As of Step 4 `/profile` is the post-login home: a successful login, and a signed-in visitor hitting `/login` or `/register`, all redirect to `url_for("profile")` (Step 3 parked these on the landing page only because no signed-in page existed yet). The signed-in navbar name links to `/profile`. Logout still redirects to the landing page.
+Step 1 (`database/db.py`), Step 2 (registration), Step 3 (login, session, logout), Step 4 (profile page UI), and Step 5 (profile page wired to the database) are done. `/profile` renders its four sections (user card, summary stats, transaction table, category breakdown) from **live `users`/`expenses` queries** via `database/db.py` — `templates/profile.html` was not changed to get there. The remaining order is expense CRUD (Steps 7-9). As of Step 4 `/profile` is the post-login home: a successful login, and a signed-in visitor hitting `/login` or `/register`, all redirect to `url_for("profile")` (Step 3 parked these on the landing page only because no signed-in page existed yet). The signed-in navbar name links to `/profile`. Logout still redirects to the landing page.
 
 **Conventions Steps 2-3 established, which everything after must match:**
 - Emails are stored and looked up **stripped and lowercased**. SQLite compares TEXT case-sensitively, so normalising in the view is the only thing keeping `A@b.com` and `a@b.com` one account. `get_user_by_email()` expects an already-normalised value.
@@ -86,6 +86,13 @@ Step 1 (`database/db.py`), Step 2 (registration), Step 3 (login, session, logout
 
 **Convention Step 4 established:**
 - The signed-in navbar renders the user's name as `<a href="{{ url_for('profile') }}" class="nav-user">`, not a `<span>` — keep `class="nav-user"` as the last attribute. Its ink colour / 600 weight come from `.nav-links a.nav-user`, a specificity-bumped selector that beats the generic muted `.nav-links a` rule. A signed-in-only page guards with an inline `if not session.get("user_id"): return redirect(url_for("login"))` at the top of the view (no decorator).
+
+**Convention Step 5 established:**
+- `database/db.py` gained four read helpers for `/profile`: `get_user_by_id(user_id)` (explicit column list — `id, name, email, created_at` — never `SELECT *`, so `password_hash` can't reach a template context), `get_recent_expenses(user_id, limit=10)` (`ORDER BY date DESC, id DESC LIMIT ?`, newest first, capped), `get_expense_summary(user_id)` (`COUNT`/`COALESCE(SUM(...), 0.0)` in one row), and `get_category_breakdown(user_id)` (`GROUP BY category ORDER BY total DESC`). All aggregation is SQL, in `db.py` — a view never sums or groups rows itself.
+- The `/profile` view passes the template **plain dicts**, never a raw `sqlite3.Row` — Jinja's `row.attr` access fails silently on a `Row` (only `row["attr"]` works).
+- Presentation formatting lives as `_`-prefixed module-level functions in `app.py` (`_rupees`, `_initials`, `_month_year`, `_tx_date`, plus the `_user_card`/`_build_stats`/`_build_transactions`/`_build_breakdown` view-model builders) — not in `db.py`, not in the template. Currency is `"₹" + f"{v:,.2f}"`; transaction dates are `f"{d.day} {d:%b %Y}"` (no leading-zero day); `member_since` is `"%B %Y"`.
+- Category-breakdown `pct` is each category's share of the **largest** category (top row = 100), not a share of the grand total — that's what makes the top bar render full-width.
+- A `session["user_id"]` that matches no row (deleted account) clears the session and redirects to `/login`, same as an absent one.
 
 **Do not implement a stub route unless the active task explicitly targets that step.**
 

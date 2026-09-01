@@ -9,8 +9,12 @@ from werkzeug.security import check_password_hash
 from database.db import (
     CATEGORIES,
     create_user,
+    get_category_breakdown,
     get_db,
+    get_expense_summary,
+    get_recent_expenses,
     get_user_by_email,
+    get_user_by_id,
     init_db,
     seed_db,
 )
@@ -236,3 +240,126 @@ def test_create_user_reraises_integrity_errors_that_are_not_duplicates():
     init_db()
     with pytest.raises(sqlite3.IntegrityError):
         create_user(None, "nameless@example.com", "supersecret")
+
+
+# ------------------------------------------------------------------ #
+# Profile reads (Step 5)                                              #
+# ------------------------------------------------------------------ #
+
+
+def _add_expense(user_id, amount, category, day, description="x"):
+    """Insert one expense on 2026-09-<day> for `user_id`, return its new id."""
+    conn = get_db()
+    try:
+        cursor = conn.execute(
+            "INSERT INTO expenses (user_id, amount, category, date, description) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (user_id, amount, category, f"2026-09-{day:02d}", description),
+        )
+        conn.commit()
+        return cursor.lastrowid
+    finally:
+        conn.close()
+
+
+def test_get_user_by_id_returns_row_for_existing_user():
+    init_db()
+    seed_db()
+    user = get_user_by_id(1)
+    assert user["name"] == "Demo User"
+    assert user["email"] == "demo@spendly.com"
+
+
+def test_get_user_by_id_returns_none_for_unknown_id():
+    init_db()
+    seed_db()
+    assert get_user_by_id(9999) is None
+
+
+def test_get_user_by_id_does_not_expose_the_password_hash():
+    """The view renders this row's fields — the hash must never be one of them."""
+    init_db()
+    seed_db()
+    user = get_user_by_id(1)
+    assert "password_hash" not in user.keys()
+
+
+def test_get_recent_expenses_returns_only_the_given_users_rows():
+    init_db()
+    seed_db()  # user 1, 8 expenses
+    other = create_user("Other", "other@example.com", "supersecret")
+    _add_expense(other, 10.0, "Food", 3, "not mine")
+
+    rows = get_recent_expenses(1)
+
+    assert len(rows) == 8
+    assert all(r["description"] != "not mine" for r in rows)
+
+
+def test_get_recent_expenses_orders_newest_first_then_by_id():
+    init_db()
+    user = create_user("Solo", "solo@example.com", "supersecret")
+    first = _add_expense(user, 1.0, "Food", 10, "older")
+    second = _add_expense(user, 2.0, "Food", 20, "newer")
+    same_day = _add_expense(user, 3.0, "Food", 20, "newer same day")
+
+    rows = get_recent_expenses(user)
+
+    assert [r["id"] for r in rows] == [same_day, second, first]
+
+
+def test_get_recent_expenses_respects_the_limit():
+    init_db()
+    user = create_user("Solo", "solo@example.com", "supersecret")
+    for day in range(1, 16):
+        _add_expense(user, 1.0, "Food", day)
+
+    assert len(get_recent_expenses(user, limit=10)) == 10
+    assert len(get_recent_expenses(user, limit=3)) == 3
+
+
+def test_get_expense_summary_counts_and_sums_the_users_expenses():
+    init_db()
+    seed_db()
+
+    summary = get_expense_summary(1)
+
+    assert summary["tx_count"] == 8
+    assert summary["total"] == pytest.approx(6848.75)
+
+
+def test_get_expense_summary_is_zero_for_a_user_with_no_expenses():
+    init_db()
+    user = create_user("Fresh", "fresh@example.com", "supersecret")
+
+    summary = get_expense_summary(user)
+
+    assert summary["tx_count"] == 0
+    assert summary["total"] == 0.0
+
+
+def test_get_category_breakdown_groups_by_category_ordered_by_total_desc():
+    init_db()
+    user = create_user("Solo", "solo@example.com", "supersecret")
+    _add_expense(user, 100.0, "Food", 1)
+    _add_expense(user, 50.0, "Food", 2)
+    _add_expense(user, 400.0, "Shopping", 3)
+    _add_expense(user, 20.0, "Transport", 4)
+
+    breakdown = get_category_breakdown(user)
+
+    assert [(r["category"], r["total"]) for r in breakdown] == [
+        ("Shopping", 400.0),
+        ("Food", 150.0),
+        ("Transport", 20.0),
+    ]
+
+
+def test_get_category_breakdown_omits_categories_with_no_spend():
+    init_db()
+    user = create_user("Solo", "solo@example.com", "supersecret")
+    _add_expense(user, 10.0, "Food", 1)
+
+    breakdown = get_category_breakdown(user)
+
+    assert [r["category"] for r in breakdown] == ["Food"]
