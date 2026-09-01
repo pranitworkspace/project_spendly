@@ -198,62 +198,85 @@ def get_user_by_id(user_id):
 
 
 # ------------------------------------------------------------------ #
-# Expenses — profile reads (Step 5)                                   #
+# Expenses — profile reads (Step 5), optional date filter (Step 6)    #
 # ------------------------------------------------------------------ #
 
 
-def get_recent_expenses(user_id, limit=10):
+def _date_range_sql(date_from, date_to):
+    """SQL fragment and params for an optional inclusive date range.
+
+    The fragment is meant to be appended straight after an existing
+    ``WHERE user_id = ?`` clause. It is all-or-nothing: unless *both* bounds
+    are given this returns ``("", [])``, so an unfiltered call emits the exact
+    same query it did before Step 6. `date_from`/`date_to` are ISO
+    `YYYY-MM-DD` strings — `expenses.date` is TEXT and SQLite compares it
+    lexicographically, so `BETWEEN` on zero-padded ISO is a calendar compare.
+    """
+    if date_from is None or date_to is None:
+        return "", []
+    return " AND date BETWEEN ? AND ?", [date_from, date_to]
+
+
+def get_recent_expenses(user_id, limit=10, date_from=None, date_to=None):
     """Return `user_id`'s most recent expenses, newest first, capped at `limit`.
 
     Ordered by `date` then `id` so that expenses sharing a date fall in
     insertion order with the newest first. Powers the profile page's "Recent
     transactions" table, which shows only a recent window rather than the whole
-    history.
+    history. When `date_from` and `date_to` are both given, the window is
+    further narrowed to that inclusive range (Step 6's date filter); the
+    `limit` still applies within it.
     """
+    frag, date_params = _date_range_sql(date_from, date_to)
     conn = get_db()
     try:
         return conn.execute(
             "SELECT id, amount, category, date, description "
-            "FROM expenses WHERE user_id = ? "
-            "ORDER BY date DESC, id DESC LIMIT ?",
-            (user_id, limit),
+            "FROM expenses WHERE user_id = ?" + frag +
+            " ORDER BY date DESC, id DESC LIMIT ?",
+            (user_id, *date_params, limit),
         ).fetchall()
     finally:
         conn.close()
 
 
-def get_expense_summary(user_id):
+def get_expense_summary(user_id, date_from=None, date_to=None):
     """Return a single row of (`tx_count`, `total`) for `user_id`'s expenses.
 
     COALESCE keeps `total` a float `0.0` rather than NULL when the user has no
     expenses yet, so the caller never has to special-case the empty account.
+    When `date_from` and `date_to` are both given, only expenses in that
+    inclusive range are counted (Step 6's date filter).
     """
+    frag, date_params = _date_range_sql(date_from, date_to)
     conn = get_db()
     try:
         return conn.execute(
             "SELECT COUNT(*) AS tx_count, COALESCE(SUM(amount), 0.0) AS total "
-            "FROM expenses WHERE user_id = ?",
-            (user_id,),
+            "FROM expenses WHERE user_id = ?" + frag,
+            (user_id, *date_params),
         ).fetchone()
     finally:
         conn.close()
 
 
-def get_category_breakdown(user_id):
+def get_category_breakdown(user_id, date_from=None, date_to=None):
     """Return `user_id`'s spend per category as rows of (`category`, `total`).
 
     Largest total first; ties broken alphabetically for a stable order.
     Categories the user has never spent in are absent from the result, so the
     first row is both the top category and the denominator for the profile
-    page's breakdown bars.
+    page's breakdown bars. When `date_from` and `date_to` are both given, only
+    expenses in that inclusive range feed the totals (Step 6's date filter).
     """
+    frag, date_params = _date_range_sql(date_from, date_to)
     conn = get_db()
     try:
         return conn.execute(
             "SELECT category, SUM(amount) AS total "
-            "FROM expenses WHERE user_id = ? "
-            "GROUP BY category ORDER BY total DESC, category ASC",
-            (user_id,),
+            "FROM expenses WHERE user_id = ?" + frag +
+            " GROUP BY category ORDER BY total DESC, category ASC",
+            (user_id, *date_params),
         ).fetchall()
     finally:
         conn.close()

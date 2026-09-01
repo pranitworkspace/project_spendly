@@ -1,3 +1,4 @@
+import calendar
 import os
 from datetime import date
 
@@ -235,6 +236,90 @@ def _build_breakdown(category_rows):  # SUBAGENT 3 — category breakdown
     ]
 
 
+# Date-filter helpers for /profile (Step 6). Controller logic — they read the
+# query string and do calendar arithmetic, no DB access and no currency/date
+# string formatting (that stays with the builders above).
+
+def _parse_iso_date(value):
+    """`value` as a `date` if it is a well-formed ISO YYYY-MM-DD string, else
+    None. Covers the missing (`""`), malformed (`"not-a-date"`) and None cases
+    in one place so the view never has to.
+    """
+    try:
+        return date.fromisoformat(value)
+    except (ValueError, TypeError):
+        return None
+
+
+def _month_last_day(year, month):
+    """The last calendar day (28-31) of `year`-`month`."""
+    return calendar.monthrange(year, month)[1]
+
+
+def _months_before(anchor, months):
+    """The date `months` calendar months before `anchor`, day-clamped.
+
+    Zero-based month-index arithmetic (`year*12 + (month - 1)`) plus `divmod`
+    handles the year rollover, including a negative index (Jan minus 3 months
+    -> Oct last year): `divmod` yields a 0-11 remainder that `+ 1` turns back
+    into a 1-12 month. The day is clamped to the target month's length so
+    31 May minus 3 months is 28/29 Feb, never an invalid date.
+    """
+    index = anchor.year * 12 + (anchor.month - 1) - months
+    year, month_zero = divmod(index, 12)
+    month = month_zero + 1
+    day = min(anchor.day, _month_last_day(year, month))
+    return date(year, month, day)
+
+
+def _preset_ranges(today):
+    """The filter bar's four quick-select ranges, in display order.
+
+    Each entry is a dict of `key`, `label`, and ISO `date_from`/`date_to`
+    strings — both None for "All Time", which renders as a bare `/profile` link.
+    """
+    first = today.replace(day=1)
+    last = today.replace(day=_month_last_day(today.year, today.month))
+    return [
+        {
+            "key": "this_month",
+            "label": "This Month",
+            "date_from": first.isoformat(),
+            "date_to": last.isoformat(),
+        },
+        {
+            "key": "last_3_months",
+            "label": "Last 3 Months",
+            "date_from": _months_before(today, 3).isoformat(),
+            "date_to": today.isoformat(),
+        },
+        {
+            "key": "last_6_months",
+            "label": "Last 6 Months",
+            "date_from": _months_before(today, 6).isoformat(),
+            "date_to": today.isoformat(),
+        },
+        {
+            "key": "all_time",
+            "label": "All Time",
+            "date_from": None,
+            "date_to": None,
+        },
+    ]
+
+
+def _active_preset(date_from, date_to, presets):
+    """Which filter-bar entry the current (`date_from`, `date_to`) ISO strings
+    select. An exact match on both bounds returns that preset's key — including
+    "all_time" when both are None. A live filter that matches no preset is
+    "custom".
+    """
+    for preset in presets:
+        if preset["date_from"] == date_from and preset["date_to"] == date_to:
+            return preset["key"]
+    return "custom"
+
+
 @app.route("/profile")
 def profile():
     # Inline guard, matching the /register and /login style already in this
@@ -249,9 +334,36 @@ def profile():
         return redirect(url_for("login"))
 
     uid = user_row["id"]
-    summary = get_expense_summary(uid)
-    category_rows = get_category_breakdown(uid)
-    expense_rows = get_recent_expenses(uid, limit=10)
+
+    # Step 6 date filter — two optional query params, applied only when both
+    # are present and valid. Anything else (missing, malformed, one-sided)
+    # falls back to the full unfiltered page; an inverted range also flashes.
+    date_from = _parse_iso_date(request.args.get("date_from", ""))
+    date_to = _parse_iso_date(request.args.get("date_to", ""))
+    if date_from is None or date_to is None:
+        date_from = date_to = None
+    elif date_from > date_to:
+        flash("Start date must be before end date.", "error")
+        date_from = date_to = None
+
+    # Back to ISO text: the `date_from > date_to` check above wants real dates,
+    # but the DB layer and the template both take ISO strings (or None).
+    from_str = date_from.isoformat() if date_from else None
+    to_str = date_to.isoformat() if date_to else None
+
+    summary = get_expense_summary(uid, date_from=from_str, date_to=to_str)
+    category_rows = get_category_breakdown(uid, date_from=from_str, date_to=to_str)
+    expense_rows = get_recent_expenses(
+        uid, limit=10, date_from=from_str, date_to=to_str
+    )
+
+    presets = _preset_ranges(date.today())
+    date_filter = {
+        "date_from": from_str or "",
+        "date_to": to_str or "",
+        "active": _active_preset(from_str, to_str, presets),
+        "presets": presets,
+    }
 
     return render_template(
         "profile.html",
@@ -259,6 +371,7 @@ def profile():
         stats=_build_stats(summary, category_rows),
         transactions=_build_transactions(expense_rows),
         breakdown=_build_breakdown(category_rows),
+        date_filter=date_filter,
     )
 
 
