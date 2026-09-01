@@ -787,6 +787,91 @@ a { color: inherit; text-decoration: none; }
     font-variant-numeric: tabular-nums;
 }
 
+/* Section 1.5 — date filter bar (Step 6) */
+.profile-filter {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 1rem 1.5rem;
+    padding: 1.25rem 1.5rem;
+    background: var(--paper-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+}
+
+.profile-filter-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+/* Preset pills mirror .profile-badge chrome, plus a hover/active affordance. */
+.profile-filter-preset {
+    display: inline-block;
+    padding: 0.4rem 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--paper);
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--ink-muted);
+    transition: all 0.2s;
+}
+
+.profile-filter-preset:hover {
+    border-color: var(--ink);
+    color: var(--ink);
+}
+
+.profile-filter-preset:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.profile-filter-preset.is-active {
+    background: var(--accent-light);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* Custom range sits to the right; its border only shows when it is the
+   active selection (no preset matched the current from/to). */
+.profile-filter-custom {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.75rem;
+    margin-left: auto;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+}
+
+.profile-filter-custom.is-active {
+    border-color: var(--accent);
+    background: var(--accent-light);
+}
+
+.profile-filter-custom .form-group { margin-bottom: 0; }
+
+.profile-filter-custom .form-group label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+}
+
+.profile-filter-custom .form-input {
+    width: auto;
+    padding: 0.45rem 0.6rem;
+    font-size: 0.85rem;
+}
+
+.profile-filter-apply {
+    padding: 0.5rem 1.1rem;
+    font-size: 0.85rem;
+}
+
 /* ------------------------------------------------------------------ */
 /* Footer                                                              */
 /* ------------------------------------------------------------------ */
@@ -882,6 +967,9 @@ a { color: inherit; text-decoration: none; }
 
     .profile-stats { grid-template-columns: 1fr; }
     .profile-bar-row { grid-template-columns: 90px 1fr 80px; }
+
+    .profile-filter { flex-direction: column; align-items: stretch; }
+    .profile-filter-custom { margin-left: 0; flex-wrap: wrap; }
 }
 
 @media (max-width: 600px) {
@@ -899,4 +987,7 @@ a { color: inherit; text-decoration: none; }
     .profile-user { flex-direction: column; text-align: center; }
     .profile-identity { align-items: center; }
     .profile-bar-row { grid-template-columns: 80px 1fr 70px; }
+
+    .profile-filter-custom .form-group { flex: 1 1 100%; }
+    .profile-filter-custom .form-input { width: 100%; }
 }
