@@ -71,7 +71,7 @@ No linter/formatter is configured in this repo.
 
 `app.py` marks its stub routes with a literal string naming the step that implements them (`"Add expense — coming in Step 7"`), so the current state is always readable from the file itself.
 
-Step 1 (`database/db.py`), Step 2 (registration), and Step 3 (login, session, logout) are done. The remaining order is: profile, then expense CRUD. There is no expense-listing route yet at all, which is why a successful login currently redirects to the landing page.
+Step 1 (`database/db.py`), Step 2 (registration), Step 3 (login, session, logout), and Step 4 (profile page) are done. `/profile` renders its four sections (user card, summary stats, transaction table, category breakdown) from **hardcoded dicts/lists in `app.py`** — Step 5 swaps that context for real `users`/`expenses` queries via `database/db.py` with no template change. The remaining order is: wire the profile DB (Step 5), then expense CRUD. As of Step 4 `/profile` is the post-login home: a successful login, and a signed-in visitor hitting `/login` or `/register`, all redirect to `url_for("profile")` (Step 3 parked these on the landing page only because no signed-in page existed yet). The signed-in navbar name links to `/profile`. Logout still redirects to the landing page.
 
 **Conventions Steps 2-3 established, which everything after must match:**
 - Emails are stored and looked up **stripped and lowercased**. SQLite compares TEXT case-sensitively, so normalising in the view is the only thing keeping `A@b.com` and `a@b.com` one account. `get_user_by_email()` expects an already-normalised value.
@@ -83,6 +83,9 @@ Step 1 (`database/db.py`), Step 2 (registration), and Step 3 (login, session, lo
 - Logout uses `session.clear()`, never a partial `pop()`.
 - Auth failures use one generic message, `"Incorrect email or password."`, for both an unknown email and a wrong password — do not add a message that reveals whether an account exists.
 - `flash(message, "success"|"error")` renders through the `.flash-stack` block in `base.html`; the CSS classes are `.flash-success` and `.flash-error`.
+
+**Convention Step 4 established:**
+- The signed-in navbar renders the user's name as `<a href="{{ url_for('profile') }}" class="nav-user">`, not a `<span>` — keep `class="nav-user"` as the last attribute. Its ink colour / 600 weight come from `.nav-links a.nav-user`, a specificity-bumped selector that beats the generic muted `.nav-links a` rule. A signed-in-only page guards with an inline `if not session.get("user_id"): return redirect(url_for("login"))` at the top of the view (no decorator).
 
 **Do not implement a stub route unless the active task explicitly targets that step.**
 

@@ -591,6 +591,203 @@ a { color: inherit; text-decoration: none; }
 }
 
 /* ------------------------------------------------------------------ */
+/* Profile page                                                        */
+/* ------------------------------------------------------------------ */
+
+.profile-section { padding: 5rem 2rem 4rem; }
+
+.profile-container {
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+/* Shared card chrome (sections 1, 3, 4) — follows the .mock-card / .legal-card
+   convention; there is no generic .card. */
+.profile-card {
+    background: var(--paper-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 2rem;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.06);
+}
+
+/* Section 1 — user info */
+.profile-user {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.profile-avatar {
+    flex-shrink: 0;
+    width: 64px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: var(--accent-light);
+    color: var(--accent);
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.profile-identity {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.profile-name {
+    font-family: var(--font-display);
+    font-size: 1.75rem;
+    line-height: 1.2;
+    color: var(--ink);
+}
+
+.profile-email { font-size: 0.9rem; color: var(--ink-muted); }
+
+.profile-since { font-size: 0.8rem; color: var(--ink-faint); }
+
+/* Section 2 — summary stats */
+.profile-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+}
+
+/* Stat tiles are mini-cards (radius-md, no shadow) — mirrors .feature-card. */
+.profile-stat {
+    background: var(--paper-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    text-align: center;
+}
+
+.profile-stat-value {
+    font-family: var(--font-display);
+    font-size: 1.6rem;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+}
+
+.profile-stat-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+}
+
+/* Card section headings (sections 3 + 4) */
+.profile-section-title {
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    color: var(--ink);
+    margin-bottom: 1.5rem;
+}
+
+/* Section 3 — transaction table */
+.profile-tx-scroll { overflow-x: auto; }
+
+.profile-tx-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.profile-tx-table th {
+    text-align: left;
+    padding: 0 0.75rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    white-space: nowrap;
+}
+
+.profile-tx-table td {
+    padding: 0.85rem 0.75rem;
+    border-bottom: 1px solid var(--border-soft);
+    color: var(--ink-soft);
+    white-space: nowrap;
+}
+
+.profile-tx-table tbody tr:last-child td { border-bottom: none; }
+
+.profile-tx-table tbody tr:hover { background: var(--paper-warm); }
+
+.profile-tx-amount {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Neutral category badge — one style for all categories */
+.profile-badge {
+    display: inline-block;
+    background: var(--paper-warm);
+    color: var(--ink-soft);
+    border: 1px solid var(--border);
+    padding: 0.2rem 0.7rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* Section 4 — category breakdown bars (profile-prefixed mirror of .mock-*) */
+.profile-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.profile-bar-row {
+    display: grid;
+    grid-template-columns: 110px 1fr 90px;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.profile-bar-cat {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--ink-soft);
+}
+
+.profile-bar-track {
+    height: 6px;
+    background: var(--border-soft);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.profile-bar {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 999px;
+}
+
+.profile-bar-amt {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--ink-muted);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------------ */
 /* Footer                                                              */
 /* ------------------------------------------------------------------ */
 
@@ -656,10 +853,14 @@ a { color: inherit; text-decoration: none; }
 /* Signed-in navbar                                                    */
 /* ------------------------------------------------------------------ */
 
-.nav-user {
+/* Selector is specificity-bumped so it beats the generic muted `.nav-links a`
+   rule now that the name is an <a href> (a link to /profile), not a <span>. */
+.nav-links a.nav-user {
     color: var(--ink);
     font-weight: 600;
 }
+
+.nav-links a.nav-user:hover { text-decoration: underline; }
 
 .nav-signout { color: var(--ink-muted); }
 
@@ -678,6 +879,9 @@ a { color: inherit; text-decoration: none; }
     .hero-visual { display: none; }
 
     .features-inner { grid-template-columns: 1fr; }
+
+    .profile-stats { grid-template-columns: 1fr; }
+    .profile-bar-row { grid-template-columns: 90px 1fr 80px; }
 }
 
 @media (max-width: 600px) {
@@ -689,4 +893,10 @@ a { color: inherit; text-decoration: none; }
     .legal-section { padding: 3rem 1.25rem 3rem; }
     .legal-title { font-size: 2.25rem; }
     .legal-card { padding: 1.75rem; }
+
+    .profile-section { padding: 3rem 1.25rem 3rem; }
+    .profile-card { padding: 1.5rem; }
+    .profile-user { flex-direction: column; text-align: center; }
+    .profile-identity { align-items: center; }
+    .profile-bar-row { grid-template-columns: 80px 1fr 70px; }
 }
