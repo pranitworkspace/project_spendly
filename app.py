@@ -42,7 +42,7 @@ def landing():
 def register():
     # A signed-in user has nothing to do on the registration form.
     if session.get("user_id"):
-        return redirect(url_for("landing"))
+        return redirect(url_for("profile"))
 
     if request.method == "POST":
         name = request.form.get("name", "").strip()
@@ -78,10 +78,10 @@ def register():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    # Already signed in — /login has nothing to offer, so bounce them home
-    # rather than showing a sign-in form to someone already signed in.
+    # Already signed in — /login has nothing to offer, so send them to their
+    # profile rather than showing a sign-in form to someone already signed in.
     if session.get("user_id"):
-        return redirect(url_for("landing"))
+        return redirect(url_for("profile"))
 
     if request.method == "POST":
         email = request.form.get("email", "").strip().lower()
@@ -110,7 +110,9 @@ def login():
         session.clear()
         session["user_id"] = user["id"]
         session["user_name"] = user["name"]
-        return redirect(url_for("landing"))
+        # Post-login home. Step 3 parked this on the landing page because no
+        # signed-in page existed yet; Step 4's /profile is now that page.
+        return redirect(url_for("profile"))
 
     return render_template("login.html")
 
@@ -135,13 +137,62 @@ def logout():
 
 
 # ------------------------------------------------------------------ #
-# Placeholder routes — students will implement these                  #
+# Profile                                                            #
 # ------------------------------------------------------------------ #
 
 @app.route("/profile")
 def profile():
-    return "Profile page — coming in Step 4"
+    # Inline guard, matching the /register and /login style already in this
+    # file (not a decorator). Step 5 keeps this guard and swaps the hardcoded
+    # context below for real users/expenses queries via database/db.py.
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
 
+    user = {
+        "name": "Demo User",
+        "email": "demo@spendly.com",
+        "initials": "DU",
+        "member_since": "January 2026",
+    }
+    stats = [
+        {"label": "Total spent", "value": "₹6,848.75"},
+        {"label": "Transactions", "value": "8"},
+        {"label": "Top category", "value": "Shopping"},
+    ]
+    transactions = [
+        {"date": "2 Sep 2026", "description": "Groceries", "category": "Food", "amount": "₹450.00"},
+        {"date": "4 Sep 2026", "description": "Metro card top-up", "category": "Transport", "amount": "₹120.50"},
+        {"date": "7 Sep 2026", "description": "Electricity bill", "category": "Bills", "amount": "₹1,899.00"},
+        {"date": "9 Sep 2026", "description": "Pharmacy", "category": "Health", "amount": "₹650.00"},
+        {"date": "12 Sep 2026", "description": "Movie tickets", "category": "Entertainment", "amount": "₹399.00"},
+        {"date": "15 Sep 2026", "description": "Running shoes", "category": "Shopping", "amount": "₹2,250.00"},
+        {"date": "18 Sep 2026", "description": "Dinner out", "category": "Food", "amount": "₹780.25"},
+        {"date": "21 Sep 2026", "description": "Gift", "category": "Other", "amount": "₹300.00"},
+    ]
+    # pct = this category's total as a share of the largest category's total, so
+    # the top row's bar renders full. Precomputed here; the template only renders.
+    breakdown = [
+        {"category": "Shopping", "amount": "₹2,250.00", "pct": 100},
+        {"category": "Bills", "amount": "₹1,899.00", "pct": 84},
+        {"category": "Food", "amount": "₹1,230.25", "pct": 55},
+        {"category": "Health", "amount": "₹650.00", "pct": 29},
+        {"category": "Entertainment", "amount": "₹399.00", "pct": 18},
+        {"category": "Other", "amount": "₹300.00", "pct": 13},
+        {"category": "Transport", "amount": "₹120.50", "pct": 5},
+    ]
+
+    return render_template(
+        "profile.html",
+        user=user,
+        stats=stats,
+        transactions=transactions,
+        breakdown=breakdown,
+    )
+
+
+# ------------------------------------------------------------------ #
+# Placeholder routes — students will implement these                  #
+# ------------------------------------------------------------------ #
 
 @app.route("/expenses/add")
 def add_expense():

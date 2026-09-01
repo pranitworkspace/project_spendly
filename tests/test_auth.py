@@ -35,13 +35,13 @@ def test_session_is_writable(client):
         assert session["probe"] == "ok"
 
 
-def test_valid_credentials_redirect_to_landing(client):
+def test_valid_credentials_redirect_to_profile(client):
     response = client.post(
         "/login", data={"email": DEMO_EMAIL, "password": DEMO_PASSWORD}
     )
 
     assert response.status_code == 302
-    assert response.headers["Location"] == "/"
+    assert response.headers["Location"] == "/profile"
 
 
 def test_valid_credentials_populate_the_session(client):
@@ -214,7 +214,13 @@ def test_logout_returns_no_placeholder_string(client):
 
 
 def test_other_stub_routes_are_untouched(client):
-    assert b"Profile page \xe2\x80\x94 coming in Step 4" in client.get("/profile").data
+    # /profile is implemented as of Step 4 — a signed-out visitor is redirected
+    # to /login and it no longer returns its placeholder string.
+    profile = client.get("/profile")
+    assert profile.status_code == 302
+    assert profile.headers["Location"] == "/login"
+    assert b"coming in Step 4" not in profile.data
+
     assert b"Add expense \xe2\x80\x94 coming in Step 7" in client.get("/expenses/add").data
     assert b"Edit expense \xe2\x80\x94 coming in Step 8" in client.get("/expenses/1/edit").data
     assert (
@@ -281,7 +287,7 @@ def test_signed_in_user_is_redirected_away_from_register(client):
     response = client.get("/register")
 
     assert response.status_code == 302
-    assert response.headers["Location"] == "/"
+    assert response.headers["Location"] == "/profile"
 
 
 def test_signed_in_user_is_redirected_away_from_login(client):
@@ -290,7 +296,7 @@ def test_signed_in_user_is_redirected_away_from_login(client):
     response = client.get("/login")
 
     assert response.status_code == 302
-    assert response.headers["Location"] == "/"
+    assert response.headers["Location"] == "/profile"
 
 
 def test_signed_out_visitor_can_still_reach_register(client):
