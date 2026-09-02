@@ -949,6 +949,163 @@ a { color: inherit; text-decoration: none; }
 
 .nav-signout { color: var(--ink-muted); }
 
+/* Current-page highlight — same specificity bump and treatment as .nav-user,
+   so it beats the generic muted `.nav-links a` rule. */
+.nav-links a.active {
+    color: var(--ink);
+    font-weight: 600;
+}
+
+/* ------------------------------------------------------------------ */
+/* Analytics page (coming soon)                                        */
+/* ------------------------------------------------------------------ */
+
+.analytics-section {
+    padding: 5rem 2rem 4rem;
+    display: flex;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Faint accent circles bleeding off opposite corners of the section. */
+.analytics-section::before,
+.analytics-section::after {
+    content: "";
+    position: absolute;
+    width: 26rem;
+    height: 26rem;
+    border-radius: 50%;
+    background: var(--accent);
+    opacity: 0.05;
+    pointer-events: none;
+}
+
+.analytics-section::before { top: -13rem; left: -13rem; }
+.analytics-section::after { bottom: -13rem; right: -13rem; }
+
+.analytics-card {
+    position: relative;
+    width: 100%;
+    max-width: 520px;
+    text-align: center;
+    background: var(--paper-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 3rem 2.5rem;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+}
+
+/* Accent wedges tucked into two opposite corners of the card. */
+.analytics-card::before,
+.analytics-card::after {
+    content: "";
+    position: absolute;
+    width: 5rem;
+    height: 5rem;
+    background: var(--accent);
+    opacity: 0.08;
+    pointer-events: none;
+}
+
+.analytics-card::before { top: 0; right: 0; border-bottom-left-radius: 100%; }
+.analytics-card::after { bottom: 0; left: 0; border-top-right-radius: 100%; }
+
+.analytics-icon {
+    width: 5.5rem;
+    height: 5.5rem;
+    margin: 0 auto 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent);
+    border-radius: var(--radius-md);
+    box-shadow: 0 12px 28px rgba(26, 71, 42, 0.28);
+}
+
+.analytics-icon svg {
+    width: 2.75rem;
+    height: 2.75rem;
+    color: var(--paper-card);
+}
+
+.analytics-badge {
+    display: inline-block;
+    background: var(--accent);
+    color: var(--paper);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 0.4rem 1.1rem;
+    border-radius: 999px;
+    margin-bottom: 1.25rem;
+}
+
+.analytics-title {
+    font-family: var(--font-display);
+    font-size: 2.25rem;
+    line-height: 1.15;
+    color: var(--ink);
+    margin-bottom: 1rem;
+}
+
+.analytics-title em {
+    font-style: italic;
+    color: var(--accent);
+}
+
+.analytics-text {
+    font-size: 1.05rem;
+    color: var(--ink-muted);
+    line-height: 1.7;
+    max-width: 360px;
+    margin: 0 auto 2rem;
+}
+
+.analytics-dots {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.analytics-dot {
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: analytics-pulse 1.4s ease-in-out infinite;
+}
+
+.analytics-dot:nth-child(2) { animation-delay: 0.2s; }
+.analytics-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes analytics-pulse {
+    0%, 100% { opacity: 0.25; transform: scale(0.85); }
+    50% { opacity: 1; transform: scale(1); }
+}
+
+.analytics-note {
+    font-size: 0.75rem;
+    color: var(--ink-faint);
+    letter-spacing: 0.04em;
+}
+
+/* Faded accent rule centred on the bottom edge of the card. */
+.analytics-accent-line {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 8rem;
+    height: 3px;
+    border-radius: 999px;
+    background: linear-gradient(to right, transparent, var(--accent), transparent);
+    opacity: 0.35;
+}
+
 /* ------------------------------------------------------------------ */
 /* Responsive                                                          */
 /* ------------------------------------------------------------------ */
@@ -981,6 +1138,10 @@ a { color: inherit; text-decoration: none; }
     .legal-section { padding: 3rem 1.25rem 3rem; }
     .legal-title { font-size: 2.25rem; }
     .legal-card { padding: 1.75rem; }
+
+    .analytics-section { padding: 3rem 1.25rem 3rem; }
+    .analytics-card { padding: 2rem 1.5rem; }
+    .analytics-title { font-size: 1.875rem; }
 
     .profile-section { padding: 3rem 1.25rem 3rem; }
     .profile-card { padding: 1.5rem; }

@@ -375,6 +375,16 @@ def profile():
     )
 
 
+@app.route("/analytics")
+def analytics():
+    # Signed-in-only placeholder page. Same inline guard as /profile — a
+    # logged-out visitor is bounced to /login, not shown the page.
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+
+    return render_template("analytics.html")
+
+
 # ------------------------------------------------------------------ #
 # Placeholder routes — students will implement these                  #
 # ------------------------------------------------------------------ #
