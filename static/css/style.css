@@ -696,6 +696,19 @@ a { color: inherit; text-decoration: none; }
     margin-bottom: 1.5rem;
 }
 
+/* Heading row with a right-aligned action (e.g. "Add expense" on section 3). */
+.profile-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.profile-section-head .profile-section-title {
+    margin-bottom: 0;
+}
+
 /* Section 3 — transaction table */
 .profile-tx-scroll { overflow-x: auto; }
 
@@ -1104,6 +1117,68 @@ a { color: inherit; text-decoration: none; }
     border-radius: 999px;
     background: linear-gradient(to right, transparent, var(--accent), transparent);
     opacity: 0.35;
+}
+
+/* ------------------------------------------------------------------ */
+/* Form pages (add expense)                                            */
+/* ------------------------------------------------------------------ */
+
+/* A single centred form column. Mirrors the auth-page layout but kept as its
+   own class set so a later restyle of the login/register pages can't quietly
+   reshape the expense form. Reuses .form-group / .form-input / .btn-submit. */
+
+.form-page {
+    min-height: calc(100vh - 60px - 100px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 2rem;
+}
+
+.form-page-inner {
+    width: 100%;
+    max-width: var(--auth-width);
+}
+
+.form-page-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.form-page-title {
+    font-family: var(--font-display);
+    font-size: 2rem;
+    color: var(--ink);
+    margin-bottom: 0.5rem;
+}
+
+.form-page-subtitle {
+    font-size: 0.9rem;
+    color: var(--ink-muted);
+}
+
+.form-page-card {
+    background: var(--paper-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 2rem;
+    margin-bottom: 1.5rem;
+}
+
+.form-page-error {
+    background: var(--danger-light);
+    color: var(--danger);
+    border: 1px solid var(--danger);
+    border-radius: var(--radius-sm);
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    margin-bottom: 1.25rem;
+}
+
+.form-page-foot {
+    text-align: center;
+    font-size: 0.875rem;
+    color: var(--ink-muted);
 }
 
 /* ------------------------------------------------------------------ */

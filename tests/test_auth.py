@@ -221,7 +221,13 @@ def test_other_stub_routes_are_untouched(client):
     assert profile.headers["Location"] == "/login"
     assert b"coming in Step 4" not in profile.data
 
-    assert b"Add expense \xe2\x80\x94 coming in Step 7" in client.get("/expenses/add").data
+    # /expenses/add is implemented as of Step 7 — a signed-out visitor is
+    # redirected to /login and it no longer returns its placeholder string.
+    add = client.get("/expenses/add")
+    assert add.status_code == 302
+    assert add.headers["Location"] == "/login"
+    assert b"coming in Step 7" not in add.data
+
     assert b"Edit expense \xe2\x80\x94 coming in Step 8" in client.get("/expenses/1/edit").data
     assert (
         b"Delete expense \xe2\x80\x94 coming in Step 9"

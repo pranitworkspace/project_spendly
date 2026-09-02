@@ -1,4 +1,5 @@
 import calendar
+import math
 import os
 from datetime import date
 
@@ -6,6 +7,8 @@ from flask import Flask, flash, redirect, render_template, request, session, url
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from database.db import (
+    CATEGORIES,
+    create_expense,
     create_user,
     get_category_breakdown,
     get_expense_summary,
@@ -386,13 +389,91 @@ def analytics():
 
 
 # ------------------------------------------------------------------ #
-# Placeholder routes — students will implement these                  #
+# Add expense (Step 7)                                                #
 # ------------------------------------------------------------------ #
 
-@app.route("/expenses/add")
-def add_expense():
-    return "Add expense — coming in Step 7"
+# Controller helper for the add-expense form. Validates the submitted fields and
+# hands the view exactly what it needs: the stripped values to echo into a
+# re-render, the parsed amount, and the first error (or None). No DB access, no
+# rendering — same split as _parse_iso_date and the /profile builders above.
 
+def _clean_expense_form(form):
+    """Validate the add-expense form.
+
+    Returns ``(fields, amount, error)``:
+      * ``fields`` — the four stripped raw strings, echoed back into a bounced
+        form (keys: ``amount``, ``category``, ``expense_date``, ``description``)
+      * ``amount`` — the parsed float, or None when validation failed
+      * ``error``  — the first failure message, or None when the form is valid
+    """
+    fields = {
+        "amount": form.get("amount", "").strip(),
+        "category": form.get("category", "").strip(),
+        "expense_date": form.get("date", "").strip(),
+        "description": form.get("description", "").strip(),
+    }
+
+    if not fields["amount"]:
+        return fields, None, "Amount is required."
+    try:
+        amount = float(fields["amount"])
+    except ValueError:
+        return fields, None, "Amount must be a number."
+    # float() also parses "nan"/"inf"/"1e999"; nan <= 0 and inf <= 0 are both
+    # False, so a non-finite amount would slip past the check below and then
+    # either break the NOT NULL insert or poison every SUM(amount) on /profile.
+    if not math.isfinite(amount) or amount <= 0:
+        return fields, None, "Amount must be greater than 0."
+    if fields["category"] not in CATEGORIES:
+        return fields, None, "Choose a valid category."
+    if _parse_iso_date(fields["expense_date"]) is None:
+        return fields, None, "Enter a valid date."
+    if len(fields["description"]) > 200:
+        return fields, None, "Description must be 200 characters or fewer."
+
+    return fields, amount, None
+
+
+@app.route("/expenses/add", methods=["GET", "POST"])
+def add_expense():
+    # Inline guard, matching /profile and /analytics (not a decorator).
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+
+    if get_user_by_id(session["user_id"]) is None:
+        # Session points at a deleted account — treat as signed out.
+        session.clear()
+        return redirect(url_for("login"))
+
+    if request.method == "POST":
+        fields, amount, error = _clean_expense_form(request.form)
+        if error:
+            return render_template(
+                "add_expense.html", categories=CATEGORIES, **fields, error=error
+            )
+
+        create_expense(
+            session["user_id"],
+            amount,
+            fields["category"],
+            fields["expense_date"],
+            fields["description"] or None,
+        )
+        return redirect(url_for("profile"))
+
+    # GET — an empty form; same key shape the re-render path uses.
+    fields = {
+        "amount": "",
+        "category": "",
+        "expense_date": date.today().isoformat(),
+        "description": "",
+    }
+    return render_template("add_expense.html", categories=CATEGORIES, **fields)
+
+
+# ------------------------------------------------------------------ #
+# Placeholder routes — students will implement these                  #
+# ------------------------------------------------------------------ #
 
 @app.route("/expenses/<int:id>/edit")
 def edit_expense(id):

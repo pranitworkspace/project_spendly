@@ -280,3 +280,28 @@ def get_category_breakdown(user_id, date_from=None, date_to=None):
         ).fetchall()
     finally:
         conn.close()
+
+
+def create_expense(user_id, amount, category, expense_date, description=None):
+    """Insert one expense for `user_id` and return the new row's id.
+
+    `amount` is rounded to 2 decimals here so paise precision is enforced in the
+    data layer — the same way password hashing lives in create_user(). A
+    `description` of None lands as SQL NULL (the column is nullable). `created_at`
+    is left to the schema default.
+
+    The parameter is `expense_date`, not `date`: this module does
+    `from datetime import date` at import time, so a `date` parameter would
+    shadow it. The stored column is still named `date`.
+    """
+    conn = get_db()
+    try:
+        cursor = conn.execute(
+            "INSERT INTO expenses (user_id, amount, category, date, description) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (user_id, round(amount, 2), category, expense_date, description),
+        )
+        conn.commit()
+        return cursor.lastrowid
+    finally:
+        conn.close()
