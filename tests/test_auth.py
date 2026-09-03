@@ -228,7 +228,15 @@ def test_other_stub_routes_are_untouched(client):
     assert add.headers["Location"] == "/login"
     assert b"coming in Step 7" not in add.data
 
-    assert b"Edit expense \xe2\x80\x94 coming in Step 8" in client.get("/expenses/1/edit").data
+    # /expenses/<id>/edit is implemented as of Step 8 — a signed-out visitor is
+    # redirected to /login and it no longer returns its placeholder string. The
+    # guard runs before the ownership lookup, so this is a 302 rather than the
+    # 404 an unknown id gets when signed in.
+    edit = client.get("/expenses/1/edit")
+    assert edit.status_code == 302
+    assert edit.headers["Location"] == "/login"
+    assert b"coming in Step 8" not in edit.data
+
     assert (
         b"Delete expense \xe2\x80\x94 coming in Step 9"
         in client.get("/expenses/1/delete").data

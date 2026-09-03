@@ -3,7 +3,16 @@ import math
 import os
 from datetime import date
 
-from flask import Flask, flash, redirect, render_template, request, session, url_for
+from flask import (
+    Flask,
+    abort,
+    flash,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from database.db import (
@@ -11,12 +20,14 @@ from database.db import (
     create_expense,
     create_user,
     get_category_breakdown,
+    get_expense_by_id,
     get_expense_summary,
     get_recent_expenses,
     get_user_by_email,
     get_user_by_id,
     init_db,
     seed_db,
+    update_expense,
 )
 
 app = Flask(__name__)
@@ -203,6 +214,9 @@ def _build_transactions(expense_rows):  # SUBAGENT 1 — transaction history
     """Shape recent-expenses rows into the template's `transactions` list."""
     return [
         {
+            # The id is not displayed — it is what the row's Edit link (Step 8)
+            # feeds to url_for('edit_expense').
+            "id": row["id"],
             "date": _tx_date(row["date"]),
             "description": row["description"] or "",
             "category": row["category"],
@@ -472,12 +486,77 @@ def add_expense():
 
 
 # ------------------------------------------------------------------ #
-# Placeholder routes — students will implement these                  #
+# Edit expense (Step 8)                                               #
 # ------------------------------------------------------------------ #
 
-@app.route("/expenses/<int:id>/edit")
+@app.route("/expenses/<int:id>/edit", methods=["GET", "POST"])
 def edit_expense(id):
-    return "Edit expense — coming in Step 8"
+    # Same inline guard pair as /profile, /analytics and /expenses/add.
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+
+    if get_user_by_id(session["user_id"]) is None:
+        # Session points at a deleted account — treat as signed out.
+        session.clear()
+        return redirect(url_for("login"))
+
+    # Fetched before the method branch so GET and POST answer an unknown or a
+    # foreign id identically. 404 rather than 403 on purpose: a 403 would
+    # confirm the row exists and turn the id space into an enumeration oracle.
+    expense = get_expense_by_id(id, session["user_id"])
+    if expense is None:
+        abort(404)
+
+    if request.method == "POST":
+        # The Step 7 validator, reused as-is — every rule edit needs is already
+        # in it, and a second copy would drift from the add form's.
+        fields, amount, error = _clean_expense_form(request.form)
+        if error:
+            # Echo what was *submitted*, not what is stored: re-rendering the
+            # stored row here would silently discard the user's typing.
+            return render_template(
+                "edit_expense.html",
+                categories=CATEGORIES,
+                expense_id=id,
+                **fields,
+                error=error,
+            )
+
+        if not update_expense(
+            id,
+            session["user_id"],
+            amount,
+            fields["category"],
+            fields["expense_date"],
+            fields["description"] or None,
+        ):
+            # The row was deleted between the lookup above and this write.
+            abort(404)
+
+        # /profile lists only the 10 most recent rows, so an edited expense can
+        # move or drop out of view — without this the redirect looks like a
+        # no-op. The add flow needs no such confirmation: a new expense is
+        # dated today and lands at the top.
+        flash("Expense updated.", "success")
+        return redirect(url_for("profile"))
+
+    # GET — the same key shape the re-render path uses, filled from the row.
+    # The amount is a bare "450.00", not _rupees(): an <input type="number">
+    # rejects "\u20b9450.00".
+    fields = {
+        "amount": f"{expense['amount']:.2f}",
+        "category": expense["category"],
+        "expense_date": expense["date"],
+        "description": expense["description"] or "",
+    }
+    return render_template(
+        "edit_expense.html", categories=CATEGORIES, expense_id=id, **fields
+    )
+
+
+# ------------------------------------------------------------------ #
+# Placeholder routes — students will implement these                  #
+# ------------------------------------------------------------------ #
 
 
 @app.route("/expenses/<int:id>/delete")

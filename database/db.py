@@ -305,3 +305,60 @@ def create_expense(user_id, amount, category, expense_date, description=None):
         return cursor.lastrowid
     finally:
         conn.close()
+
+
+def get_expense_by_id(expense_id, user_id):
+    """Return one of `user_id`'s expenses, or None.
+
+    `user_id` is part of the WHERE clause rather than something the caller
+    verifies afterwards: an expense belonging to someone else comes back
+    indistinguishable from one that does not exist, so a view can answer both
+    with the same 404 and never leak which ids are real.
+
+    Explicit column list, matching get_recent_expenses() — the edit form has no
+    use for `user_id` or `created_at`.
+    """
+    conn = get_db()
+    try:
+        return conn.execute(
+            "SELECT id, amount, category, date, description "
+            "FROM expenses WHERE id = ? AND user_id = ?",
+            (expense_id, user_id),
+        ).fetchone()
+    finally:
+        conn.close()
+
+
+def update_expense(
+    expense_id, user_id, amount, category, expense_date, description=None
+):
+    """Overwrite one of `user_id`'s expenses. Returns True if a row changed.
+
+    Scoped by `user_id` for the same reason as get_expense_by_id(): a mis-scoped
+    call simply matches no rows instead of writing across accounts, so the
+    guarantee holds even if a future view forgets to check. False means the id
+    does not exist *or* is not this user's — the view turns both into a 404.
+
+    `amount` is rounded to 2 decimals here, mirroring create_expense(): paise
+    precision is enforced in the data layer, not in a view. `created_at` is
+    deliberately left alone — it records when the expense was logged, not when
+    it was last touched.
+    """
+    conn = get_db()
+    try:
+        cursor = conn.execute(
+            "UPDATE expenses SET amount = ?, category = ?, date = ?, description = ? "
+            "WHERE id = ? AND user_id = ?",
+            (
+                round(amount, 2),
+                category,
+                expense_date,
+                description,
+                expense_id,
+                user_id,
+            ),
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+    finally:
+        conn.close()
