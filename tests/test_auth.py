@@ -213,7 +213,7 @@ def test_logout_returns_no_placeholder_string(client):
     assert b"coming in Step 3" not in response.data
 
 
-def test_other_stub_routes_are_untouched(client):
+def test_former_stub_routes_are_implemented(client):
     # /profile is implemented as of Step 4 — a signed-out visitor is redirected
     # to /login and it no longer returns its placeholder string.
     profile = client.get("/profile")
@@ -237,10 +237,15 @@ def test_other_stub_routes_are_untouched(client):
     assert edit.headers["Location"] == "/login"
     assert b"coming in Step 8" not in edit.data
 
-    assert (
-        b"Delete expense \xe2\x80\x94 coming in Step 9"
-        in client.get("/expenses/1/delete").data
-    )
+    # /expenses/<id>/delete is implemented as of Step 9. It is POST-only, so a
+    # GET is answered 405 by routing before the view — and therefore before the
+    # auth guard — ever runs. The signed-out POST is the one that redirects.
+    assert client.get("/expenses/1/delete").status_code == 405
+
+    delete = client.post("/expenses/1/delete")
+    assert delete.status_code == 302
+    assert delete.headers["Location"] == "/login"
+    assert b"coming in Step 9" not in delete.data
 
 
 # The landing page has its own "Sign in" ghost button (landing.html:98), so a

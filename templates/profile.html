@@ -81,6 +81,17 @@
                             <td class="profile-tx-actions">
                                 <a href="{{ url_for('edit_expense', id=tx.id) }}"
                                    class="profile-tx-action">Edit</a>
+                                {# Delete is a form, not a link: the route is
+                                   POST-only so a prefetch or a cross-site
+                                   <img src> cannot fire it. Returning false
+                                   from onsubmit is what makes Cancel a
+                                   genuine no-op. #}
+                                <form class="profile-tx-delete" method="POST"
+                                      action="{{ url_for('delete_expense', id=tx.id) }}"
+                                      onsubmit="return confirm('Delete this expense?');">
+                                    <button type="submit"
+                                            class="profile-tx-action profile-tx-action-danger">Delete</button>
+                                </form>
                             </td>
                         </tr>
                         {% endfor %}

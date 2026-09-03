@@ -746,12 +746,19 @@ a { color: inherit; text-decoration: none; }
     font-variant-numeric: tabular-nums;
 }
 
-/* Neutral category badge — one style for all categories */
-/* Row action link. The global `a { text-decoration: none }` reset means an
+/* Row actions. The global `a { text-decoration: none }` reset means an
    unstyled link in a cell of plain text reads as a label rather than a
    control, so the underline is what makes it look clickable. Sized to sit
-   inside an existing row without changing its height. Step 9's Delete link
-   goes in the same cell. */
+   inside an existing row without changing its height.
+
+   As of Step 9 the cell holds two controls — the Edit link and the Delete
+   form's button. It stays a plain table-cell: `display: flex` here would stop
+   it generating a table-cell box and take `width: 1%` (a table column-width
+   behaviour) and `text-align: right` with it, and drop the cell out of the
+   row's baseline alignment. The pair is laid out in ordinary inline flow
+   instead, held on one line by the `white-space: nowrap` already on
+   `.profile-tx-table td`. Note this class is on the <th> too, so the
+   pair-layout rules below hang off the button and the form, not off here. */
 .profile-tx-actions {
     text-align: right;
     width: 1%;
@@ -767,6 +774,39 @@ a { color: inherit; text-decoration: none; }
 
 .profile-tx-action:hover { color: var(--accent); }
 
+/* Delete is a <button> because its route is POST-only. Stripped back to the
+   anchor's metrics so the two read as one pair and the row keeps its height:
+   a UA-styled button brings its own font, padding and border and would grow
+   every row in the table. `font: inherit` carries line-height too, so the
+   button's line box matches the link's exactly, and `vertical-align: baseline`
+   stops a baseline-shifted inline-block adding descender space below the line.
+   No `color` here — `.profile-tx-action` already supplies it. */
+button.profile-tx-action {
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    cursor: pointer;
+    vertical-align: baseline;
+}
+
+/* The <form> is the button's wrapper, not a layout box: inline so it sits
+   beside the Edit link, and it carries the gap so the button needs no margin
+   of its own. Without `display: inline` a block-level form would drop Delete
+   to a second line and roughly double the row. */
+.profile-tx-delete {
+    display: inline;
+    margin-left: 0.9rem;
+}
+
+/* Delete rests in the same muted tone as Edit — the two are one set of row
+   actions, and the confirm() dialog is the real guard against a misclick, not
+   the colour. It goes danger-red on hover where Edit goes accent-green.
+   Element-qualified so it outranks `.profile-tx-action:hover` on specificity
+   rather than on source order. */
+button.profile-tx-action-danger:hover { color: var(--danger); }
+
+/* Neutral category badge — one style for all categories */
 .profile-badge {
     display: inline-block;
     background: var(--paper-warm);
