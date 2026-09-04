@@ -19,6 +19,10 @@ from database.db import (
     CATEGORIES,
     create_expense,
     create_user,
+    # Aliased: the view function below is also called delete_expense, and its
+    # `def` would silently rebind this name — Python warns about nothing, and
+    # the route would recurse into itself instead of reaching the data layer.
+    delete_expense as db_delete_expense,
     get_category_breakdown,
     get_expense_by_id,
     get_expense_summary,
@@ -215,7 +219,8 @@ def _build_transactions(expense_rows):  # SUBAGENT 1 — transaction history
     return [
         {
             # The id is not displayed — it is what the row's Edit link (Step 8)
-            # feeds to url_for('edit_expense').
+            # feeds to url_for('edit_expense') and what the Delete form
+            # (Step 9) posts to url_for('delete_expense').
             "id": row["id"],
             "date": _tx_date(row["date"]),
             "description": row["description"] or "",
@@ -555,13 +560,40 @@ def edit_expense(id):
 
 
 # ------------------------------------------------------------------ #
-# Placeholder routes — students will implement these                  #
+# Delete expense (Step 9)                                             #
 # ------------------------------------------------------------------ #
 
-
-@app.route("/expenses/<int:id>/delete")
+# POST-only, unlike every other expense route. A destructive action must not be
+# reachable by following a link: a GET-able delete can be fired by a link
+# prefetcher, a crawler or a cross-site <img src> with no click at all. Method
+# routing runs *before* the view, so a GET here is a 405 — including for a
+# signed-out visitor, who gets a 405 rather than the 302 every other guarded
+# route gives.
+@app.route("/expenses/<int:id>/delete", methods=["POST"])
 def delete_expense(id):
-    return "Delete expense — coming in Step 9"
+    # Same inline guard pair as /profile, /expenses/add and /expenses/<id>/edit.
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+
+    if get_user_by_id(session["user_id"]) is None:
+        # Session points at a deleted account — treat as signed out.
+        session.clear()
+        return redirect(url_for("login"))
+
+    # No get_expense_by_id() lookup first, unlike the edit route: the DELETE is
+    # already scoped to `id = ? AND user_id = ?`, so it is its own ownership
+    # test. A read before the write would buy a second query and a window
+    # between the check and the delete, and answer nothing the rowcount does
+    # not. False means the id does not exist *or* is not this user's — a 404
+    # for both, never a 403, which would confirm the id exists and turn the id
+    # space into an enumeration oracle.
+    if not db_delete_expense(id, session["user_id"]):
+        abort(404)
+
+    # /profile re-renders its ten most recent rows with no other sign that one
+    # is gone, so say so — the same reason the edit flow flashes.
+    flash("Expense deleted.", "success")
+    return redirect(url_for("profile"))
 
 
 if __name__ == "__main__":

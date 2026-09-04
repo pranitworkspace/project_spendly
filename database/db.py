@@ -362,3 +362,32 @@ def update_expense(
         return cursor.rowcount > 0
     finally:
         conn.close()
+
+
+def delete_expense(expense_id, user_id):
+    """Remove one of `user_id`'s expenses. Returns True if a row was deleted.
+
+    Scoped by `user_id` for the same reason as get_expense_by_id() and
+    update_expense(): a mis-scoped call simply matches no rows instead of
+    deleting across accounts, so the guarantee holds even if a future view
+    forgets to check. False means the id does not exist *or* is not this
+    user's — the view turns both into a 404.
+
+    This DELETE *is* the ownership test, which is why the caller needs no
+    get_expense_by_id() lookup first: a read before the write would only add a
+    query and a window between the check and the delete, and answer nothing
+    the rowcount does not.
+
+    The removal is permanent — there is no `deleted_at` column and no undo —
+    so the "are you sure" belongs in the UI, not here.
+    """
+    conn = get_db()
+    try:
+        cursor = conn.execute(
+            "DELETE FROM expenses WHERE id = ? AND user_id = ?",
+            (expense_id, user_id),
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+    finally:
+        conn.close()
